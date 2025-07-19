@@ -2,11 +2,34 @@ const fs = require('fs')
 const bodyParser = require('body-parser')
 const jsonServer = require('json-server')
 const jwt = require('jsonwebtoken')
-const https = require('https')
+const http = require('http') // Mudado para HTTP
 
 const server = jsonServer.create()
 const router = jsonServer.router('./database.json')
 let userdb = JSON.parse(fs.readFileSync('./usuarios.json', 'UTF-8'))
+
+// Middleware para CORS - configurado para HTTP
+server.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3000') // Mudado para HTTP
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+  res.header('Access-Control-Allow-Credentials', 'true')
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200)
+    return
+  }
+  next()
+})
+
+// Log de todas as requisições
+server.use((req, res, next) => {
+  console.log(`📨 ${new Date().toISOString()} - ${req.method} ${req.url}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('Body:', req.body);
+  }
+  next();
+});
 
 server.use(bodyParser.urlencoded({ extended: true }))
 server.use(bodyParser.json())
@@ -30,10 +53,21 @@ function emailExiste(email) {
   return userdb.usuarios.findIndex(user => user.email === email) !== -1
 }
 
+// Endpoint para registrar usuário
 server.post('/public/registrar', (req, res) => {
+  console.log('🆕 Tentativa de registro:', req.body);
   const { email, senha, nome, endereco, complemento, cep } = req.body;
 
+  if (!email || !senha || !nome) {
+    console.log('❌ Campos obrigatórios faltando');
+    return res.status(400).json({ 
+      status: 400, 
+      message: 'Email, senha e nome são obrigatórios!' 
+    });
+  }
+
   if (emailExiste(email)) {
+    console.log('❌ E-mail já existe:', email);
     const status = 401;
     const message = 'E-mail já foi utilizado!';
     res.status(status).json({ status, message });
@@ -42,47 +76,81 @@ server.post('/public/registrar', (req, res) => {
 
   fs.readFile("./usuarios.json", (err, data) => {
     if (err) {
-      const status = 401
-      const message = err
+      console.error('❌ Erro ao ler arquivo usuarios.json:', err);
+      const status = 500
+      const message = 'Erro interno do servidor'
       res.status(status).json({ status, message })
       return
     };
 
-    const json = JSON.parse(data.toString());
+    try {
+      const json = JSON.parse(data.toString());
+      const last_item_id = json.usuarios.length > 0 ? json.usuarios[json.usuarios.length - 1].id : 0;
 
-    const last_item_id = json.usuarios.length > 0 ? json.usuarios[json.usuarios.length - 1].id : 0;
+      const novoUsuario = { 
+        id: last_item_id + 1, 
+        email, 
+        senha, 
+        nome, 
+        endereco: endereco || '', 
+        complemento: complemento || '', 
+        cep: cep || '' 
+      };
 
-    json.usuarios.push({ id: last_item_id + 1, email, senha, nome, endereco, complemento, cep });
-    fs.writeFile("./usuarios.json", JSON.stringify(json), (err) => {
-      if (err) {
-        const status = 401
-        const message = err
-        res.status(status).json({ status, message })
-        return
-      }
-    });
-    userdb = json
+      json.usuarios.push(novoUsuario);
+      
+      fs.writeFile("./usuarios.json", JSON.stringify(json), (err) => {
+        if (err) {
+          console.error('❌ Erro ao escrever arquivo usuarios.json:', err);
+          const status = 500
+          const message = 'Erro ao salvar usuário'
+          res.status(status).json({ status, message })
+          return
+        }
+        
+        userdb = json;
+        const access_token = createToken({ email, senha });
+        console.log('✅ Usuário registrado com sucesso:', novoUsuario.email);
+        res.status(200).json({ access_token });
+      });
+    } catch (parseError) {
+      console.error('❌ Erro ao parsear JSON:', parseError);
+      res.status(500).json({ status: 500, message: 'Erro interno do servidor' });
+    }
   });
-
-  const access_token = createToken({ email, senha })
-  res.status(200).json({ access_token })
 })
 
+// Endpoint para login
 server.post('/public/login', (req, res) => {
+  console.log('🔑 Tentativa de login:', req.body);
   const { email, senha } = req.body;
+  
+  if (!email || !senha) {
+    console.log('❌ Email ou senha faltando');
+    return res.status(400).json({ 
+      status: 400, 
+      message: 'Email e senha são obrigatórios!' 
+    });
+  }
+
   if (!usuarioExiste({ email, senha })) {
     const status = 401
     const message = 'E-mail ou senha incorretos!'
+    console.log('❌ Login falhou para:', email);
     res.status(status).json({ status, message })
     return
   }
+  
   const access_token = createToken({ email, senha })
   let user = { ...userdb.usuarios.find(user => user.email === email && user.senha === senha) }
   delete user.senha
+  console.log('✅ Login bem-sucedido para:', email);
   res.status(200).json({ access_token, user })
 })
 
+// Endpoints públicos para livros
 server.get('/public/lancamentos', (req, res) => {
+  console.log('📚 Buscando lançamentos');
   res.status(200).json([
     {
       "id": 4,
@@ -100,11 +168,7 @@ server.get('/public/lancamentos', (req, res) => {
           "id": 1,
           "titulo": "E-book",
           "preco": 29.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         },
         {
           "id": 2,
@@ -115,14 +179,10 @@ server.get('/public/lancamentos', (req, res) => {
           "id": 3,
           "titulo": "E-book + Impresso",
           "preco": 59.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         }
       ],
-      "sobre": "Fazer um site elegante nunca foi tão fácil, mesmo para quem não sabe escrever uma linha de CSS e, muito menos, entende como harmonizar cores, balancear elementos e tipografia. O Bootstrap é, resumidamente, um grande arquivo CSS com uma excelente documentação, que possui dezenas e dezenas de componentes prontos. No começo, foi criado pelo Twitter para servir como um guia de estilos em CSS da empresa; hoje, é a biblioteca mais famosa e utilizada no mundo."
+      "sobre": "Fazer um site elegante nunca foi tão fácil, mesmo para quem não sabe escrever uma linha de CSS e, muito menos, entende como harmonizar cores, balancear elementos e tipografia."
     },
     {
       "id": 5,
@@ -140,11 +200,7 @@ server.get('/public/lancamentos', (req, res) => {
           "id": 1,
           "titulo": "E-book",
           "preco": 29.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         },
         {
           "id": 2,
@@ -155,19 +211,15 @@ server.get('/public/lancamentos', (req, res) => {
           "id": 3,
           "titulo": "E-book + Impresso",
           "preco": 59.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         }
       ],
-      "sobre": "Talvez nenhuma outra linguagem tenha conseguido invadir o coletivo imaginário dos desenvolvedores como JavaScript fez. Em sua história fabular em busca de identidade, foi a única que conseguiu se enraizar nos navegadores, tornando-se uma linguagem em que todo desenvolvedor precisa ter algum nível de conhecimento."
+      "sobre": "Talvez nenhuma outra linguagem tenha conseguido invadir o coletivo imaginário dos desenvolvedores como JavaScript fez."
     },
     {
       "id": 6,
       "categoria": 3,
-      "titulo": "CSS Eficiente  ",
+      "titulo": "CSS Eficiente",
       "slug": "css-eficiente",
       "descricao": "Técnicas e ferramentas que fazem a diferença nos seus estilos",
       "isbn": "978-85-5519-076-6",
@@ -180,11 +232,7 @@ server.get('/public/lancamentos', (req, res) => {
           "id": 1,
           "titulo": "E-book",
           "preco": 29.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         },
         {
           "id": 2,
@@ -195,19 +243,16 @@ server.get('/public/lancamentos', (req, res) => {
           "id": 3,
           "titulo": "E-book + Impresso",
           "preco": 59.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         }
       ],
-      "sobre": "Quando aprendemos a trabalhar com CSS, frequentemente nos pegamos perdidos em detalhes fundamentais que não nos são explicados. Por vezes, alguns desses detalhes passam despercebidos até pelo desenvolvedor front-end mais experiente. Mas como ir além do conhecimento básico do CSS e preparar o caminho para explorar tópicos mais avançados?"
-    },
+      "sobre": "Quando aprendemos a trabalhar com CSS, frequentemente nos pegamos perdidos em detalhes fundamentais."
+    }
   ])
 })
 
 server.get('/public/mais-vendidos', (req, res) => {
+  console.log('📈 Buscando mais vendidos');
   res.status(200).json([
     {
       "id": 1,
@@ -225,11 +270,7 @@ server.get('/public/mais-vendidos', (req, res) => {
           "id": 1,
           "titulo": "E-book",
           "preco": 29.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         },
         {
           "id": 2,
@@ -240,14 +281,10 @@ server.get('/public/mais-vendidos', (req, res) => {
           "id": 3,
           "titulo": "E-book + Impresso",
           "preco": 59.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         }
       ],
-      "sobre": "Acessibilidade na Web consiste na eliminação de barreiras de acesso em páginas e aplicações digitais para que pessoas com deficiência tenham autonomia na rede. Na verdade, acessibilidade na web beneficia todas as pessoas. Em algum momento da vida todos podem precisar de acessibilidade, seja devido a uma limitação temporária ou permanente. Quando não levamos em consideração o acesso de pessoas com deficiência, estamos tirando o direito de uma pessoa de navegar, interagir ou consumir produtos e serviços na rede. Empatia é o fator principal para que as aplicações que desenvolvemos sejam inclusivas."
+      "sobre": "Acessibilidade na Web consiste na eliminação de barreiras de acesso em páginas e aplicações digitais."
     },
     {
       "id": 2,
@@ -265,11 +302,7 @@ server.get('/public/mais-vendidos', (req, res) => {
           "id": 1,
           "titulo": "E-book",
           "preco": 29.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         },
         {
           "id": 2,
@@ -280,14 +313,10 @@ server.get('/public/mais-vendidos', (req, res) => {
           "id": 3,
           "titulo": "E-book + Impresso",
           "preco": 59.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         }
       ],
-      "sobre": "No desenvolvimento de aplicações web e mobile, há disponível uma quantidade expressiva de linguagens, frameworks e ferramentas. Nessa imensidão, é comum se questionar ou até ter inseguranças sobre qual o melhor caminho para a construção neste segmento. O Angular é uma plataforma que facilita a construção de aplicativos, combinando templates, injeção de dependências, tudo integrado às melhores práticas de desenvolvimento."
+      "sobre": "O Angular é uma plataforma que facilita a construção de aplicativos."
     },
     {
       "id": 3,
@@ -305,11 +334,7 @@ server.get('/public/mais-vendidos', (req, res) => {
           "id": 1,
           "titulo": "E-book",
           "preco": 29.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         },
         {
           "id": 2,
@@ -320,18 +345,15 @@ server.get('/public/mais-vendidos', (req, res) => {
           "id": 3,
           "titulo": "E-book + Impresso",
           "preco": 59.9,
-          "formatos": [
-            ".pdf",
-            ".pub",
-            ".mob"
-          ]
+          "formatos": [".pdf", ".pub", ".mob"]
         }
       ],
-      "sobre": "Com constantes evoluções, adições de novas funcionalidades e integrações com outros sistemas, os softwares têm se tornado cada vez mais complexos, mais difíceis de serem entendidos. Dessa forma, fazer com que os custos de manutenção desses softwares não ultrapassem o valor que eles entregam às companhias é um desafio para a arquiteta ou arquiteto de software."
+      "sobre": "Fazer com que os custos de manutenção desses softwares não ultrapassem o valor é um desafio."
     }
   ])
 })
 
+// Middleware de autenticação para rotas protegidas
 server.use(/^(?!\/(public|livros|autores|categorias)).*$/, (req, res, next) => {
   if (req.headers.authorization === undefined || req.headers.authorization.split(' ')[0] !== 'Bearer') {
     const status = 401
@@ -357,26 +379,39 @@ server.use(/^(?!\/(public|livros|autores|categorias)).*$/, (req, res, next) => {
   }
 })
 
+// Documentação da API
 server.get('/public/docs', (req, res) => {
   const meuHtml = `
-     <h1>Documentação da API</h1>
+     <h1>Documentação da API AluraBooks</h1>
+     <h2>Endpoints Públicos:</h2>
      <ul>
-            <li>GET /livros</li>
-            <li>POST /livros</li>
-            <li>GET /categorias</li>
+            <li>POST /public/registrar - Registrar novo usuário</li>
+            <li>POST /public/login - Fazer login</li>
+            <li>GET /public/lancamentos - Listar lançamentos</li>
+            <li>GET /public/mais-vendidos - Listar mais vendidos</li>
+            <li>GET /public/docs - Esta documentação</li>
      </ul>
+     <h2>Endpoints Protegidos (requerem autenticação):</h2>
+     <ul>
+            <li>GET /pedidos - Listar pedidos do usuário</li>
+            <li>GET /livros - Listar todos os livros</li>
+            <li>GET /categorias - Listar categorias</li>
+            <li>GET /autores - Listar autores</li>
+     </ul>
+     <p><strong>Servidor rodando em:</strong> http://localhost:8000</p>
+     <p><strong>CORS configurado para:</strong> http://localhost:3000</p>
     `
     res.status(200).contentType("text/html").send(meuHtml)
 })
 
+// Usar o router do json-server para outras rotas
 server.use(router)
 
-https.createServer(
-  {
-    key: fs.readFileSync('server.key'),
-    cert: fs.readFileSync('server.crt')
-  },
-  server
-).listen(8000, () => {
-  console.log("API disponível em https://localhost:8000")
+// Configurar servidor HTTP (sem SSL)
+http.createServer(server).listen(8000, () => {
+  console.log("=== API AluraBooks ===")
+  console.log("🚀 Servidor disponível em: http://localhost:8000")
+  console.log("📚 Documentação em: http://localhost:8000/public/docs")
+  console.log("🔧 CORS configurado para: http://localhost:3000")
+  console.log("========================")
 })
