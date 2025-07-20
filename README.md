@@ -71,18 +71,18 @@ A arquitetura é minimalista, moderna e modular, focada em *developer experience
 
 ```mermaid
 graph TD
-    Client[Frontend/Cliente]
-    NodeServer[Node.js (server.js)]
-    JSONServer[json-server]
-    Users[usuarios.json]
-    Data[database.json]
-    JWTLib[jsonwebtoken]
+    Client[Frontend / Cliente]
+    NodeServer["Node.js<br/>(server.js)"]
+    JSONServer["json-server"]
+    Users["usuarios.json"]
+    Data["database.json"]
+    JWTLib["jsonwebtoken"]
 
-    Client -->|HTTP| NodeServer
-    NodeServer -->|Público/Privado| JSONServer
-    NodeServer --> JWTLib
-    NodeServer --> Users
-    JSONServer --> Data
+    Client -- HTTP --> NodeServer
+    NodeServer -- Requisições públicas/privadas --> JSONServer
+    NodeServer -- Geração/validação de token --> JWTLib
+    NodeServer -- Operações de usuário --> Users
+    JSONServer -- CRUD de dados --> Data
 ```
 
 ---
