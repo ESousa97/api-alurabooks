@@ -10,9 +10,9 @@
   "author": "ME:)",
   "license": "ISC",
   "dependencies": {
-    "body-parser": "^1.19.0",
-    "json-server": "^0.16.3",
-    "jsonwebtoken": "^8.1.0",
+    "body-parser": "^1.20.4",
+    "json-server": "^1.0.0-beta.3",
+    "jsonwebtoken": "^9.0.0",
     "spdy": "^4.0.2"
   }
 }
