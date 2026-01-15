@@ -20,7 +20,6 @@ O sistema combina a simplicidade do [`json-server`](https://github.com/typicode/
 ![CI](https://github.com/ESousa97/api-alurabooks/actions/workflows/ci.yml/badge.svg)
 ![CodeFactor](https://www.codefactor.io/repository/github/esousa97/api-alurabooks/badge)
 ![CodeQL](https://github.com/ESousa97/api-alurabooks/actions/workflows/codeql.yml/badge.svg)
-![Coverage](https://codecov.io/gh/ESousa97/api-alurabooks/branch/main/graph/badge.svg)
 ![Maintainability](https://api.codeclimate.com/v1/badges/0b7a4f1b2d4f0baf07a0/maintainability)
 ![Licença](https://img.shields.io/github/license/ESousa97/api-alurabooks)
 
