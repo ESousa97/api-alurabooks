@@ -17,13 +17,12 @@ O sistema combina a simplicidade do [`json-server`](https://github.com/typicode/
 
 ## Badges
 
-![Linguagem Principal](https://img.shields.io/github/languages/top/ESousa97/api-alurabooks?style=for-the-badge)
-![Repo Size](https://img.shields.io/github/repo-size/ESousa97/api-alurabooks?style=for-the-badge)
-![Último Commit](https://img.shields.io/github/last-commit/ESousa97/api-alurabooks?style=for-the-badge)
-![Issues Abertas](https://img.shields.io/github/issues/ESousa97/api-alurabooks?style=for-the-badge)
-![Pull Requests](https://img.shields.io/github/issues-pr/ESousa97/api-alurabooks?style=for-the-badge)
-![Contribuidores](https://img.shields.io/github/contributors/ESousa97/api-alurabooks?style=for-the-badge)
-![Licença](https://img.shields.io/github/license/ESousa97/api-alurabooks?style=for-the-badge)
+![CI](https://github.com/ESousa97/api-alurabooks/actions/workflows/ci.yml/badge.svg)
+![CodeFactor](https://www.codefactor.io/repository/github/esousa97/api-alurabooks/badge)
+![CodeQL](https://github.com/ESousa97/api-alurabooks/actions/workflows/codeql.yml/badge.svg)
+![Coverage](https://codecov.io/gh/ESousa97/api-alurabooks/branch/main/graph/badge.svg)
+![Maintainability](https://api.codeclimate.com/v1/badges/0b7a4f1b2d4f0baf07a0/maintainability)
+![Licença](https://img.shields.io/github/license/ESousa97/api-alurabooks)
 
 ---
 
@@ -71,12 +70,12 @@ A arquitetura é minimalista, moderna e modular, focada em *developer experience
 
 ```mermaid
 graph TD
-    Client[Frontend / Cliente]
-    NodeServer["Node.js<br/>(server.js)"]
-    JSONServer["json-server"]
-    Users["usuarios.json"]
-    Data["database.json"]
-    JWTLib["jsonwebtoken"]
+  Client[Frontend/Cliente]
+  NodeServer[Node.js (src/server.js)]
+  JSONServer[json-server]
+  Users[usuarios.json]
+  Data[database.json]
+  JWTLib[jsonwebtoken]
 
     Client -- HTTP --> NodeServer
     NodeServer -- Requisições públicas/privadas --> JSONServer
@@ -104,7 +103,7 @@ graph TD
 * **Endpoints REST (CRUD) protegidos:** `/livros`, `/pedidos` (token obrigatório)
 * **Endpoints públicos:** `/public/lancamentos`
 * **Proteção real por JWT:** Fluxo completo, simula produção
-* **Fácil extensão:** Basta editar `database.json` ou criar novas rotas em `server.js`
+* **Fácil extensão:** Basta editar `database.json` ou criar novas rotas em `src/server.js`
 
 ---
 
@@ -125,15 +124,19 @@ graph TD
 
 ```
 api-alurabooks-main/
+├── .github/
+├── docs/
+├── src/
+│   └── server.js
+├── tests/
+├── .env.example
 ├── .gitignore
 ├── README.md
 ├── database.json
 ├── package.json
 ├── package-lock.json
-├── server.js
 ├── usuarios.json
-├── thumbnail.png
-└── (server.crt/server.key – para HTTPS local, opcional)
+└── thumbnail.png
 ```
 
 ---
@@ -161,7 +164,13 @@ api-alurabooks-main/
    npm install
    ```
 
-3. **Execute o servidor:**
+3. **Configure variáveis de ambiente:**
+
+  ```bash
+  cp .env.example .env
+  ```
+
+4. **Execute o servidor:**
 
    * **Modo autenticado (recomendado):**
 
@@ -169,7 +178,7 @@ api-alurabooks-main/
      npm run start-auth
      ```
 
-     API disponível em `http://localhost:8000`.
+    API disponível em `http://localhost:8000`.
 
    * **Modo aberto (sem auth):**
 
@@ -234,11 +243,20 @@ curl -X GET http://localhost:8000/public/lancamentos
 
 ## Testes e Qualidade
 
-Atualmente, os testes são realizados manualmente. Sugestão para contribuintes:
+Execute os testes:
 
-* **Testes unitários:** [Jest](https://jestjs.io/)
-* **Testes de integração:** [Supertest](https://github.com/visionmedia/supertest)
-* **CI:** GitHub Actions ou similar
+```bash
+npm test
+```
+
+Lint e formatação:
+
+```bash
+npm run lint
+npm run format
+```
+
+CI automatizado com GitHub Actions (lint, testes e audit) e análise CodeQL.
 
 ---
 

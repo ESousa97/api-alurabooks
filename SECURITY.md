@@ -1,21 +1,15 @@
-# Security Policy
+# Política de Segurança
 
-## Supported Versions
+## Versões suportadas
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Este projeto é mantido para fins educacionais e de desenvolvimento local. As versões mais recentes são suportadas.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+## Reportando vulnerabilidades
 
-## Reporting a Vulnerability
+Se você identificar uma vulnerabilidade, por favor abra uma issue descrevendo o problema de forma responsável.
 
-Use this section to tell people how to report a vulnerability.
+## Boas práticas
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+- Nunca committe arquivos `.env`.
+- Use segredos fortes para `JWT_SECRET`.
+- Evite expor dados sensíveis em logs.
